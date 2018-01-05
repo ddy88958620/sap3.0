@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class name="com.hcicloud.sap.model.quality.Rules" table="quality_rules" >
+    	<id name="uuid">
+			  <generator class="uuid"/>
+		</id>
+		<property name="name" column="name"/>
+		<property name="remark" column="remark"/>
+		<property name="state" column="state"/>
+		<property name="preconditions" column="preconditions"/>
+		<property name="updateTime" column="update_time"/>
+		<property name="startTime" column="start_time"/>
+		<property name="endTime" column="end_time"/>
+		<property name="userGroupSet" column="user_group_set"/>
+		<many-to-one name="updateUser" column="update_user_id"/>
+		<many-to-one name="rulesType" column="rules_type_id" lazy="false"/>
+    </class>
+</hibernate-mapping>

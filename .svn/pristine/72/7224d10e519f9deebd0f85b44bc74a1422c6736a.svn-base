@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class name="com.hcicloud.sap.model.admin.SystemLog" table="sys_log" >
+    	<id name="uuid">
+			  <generator class="uuid"/>
+		</id>
+		<property name="description" column="description"/>
+		<property name="method" column="method"/>
+		<property name="requestIp" column="requestIp"/>
+		<property name="exceptionCode" column="exceptionCode"/>
+		<property name="exceptionDetail" column="exceptionDetail"/>
+		<property name="params" column="params"/>
+		<property name="createDate" column="createDate"/>
+        <property name="remark1" column="remark1"/>
+        <property name="remark2" column="remark2"/>
+
+        <property name="createBy" column="createBy"/>
+		<property name="createById" column="createById"/>
+
+		<property name="userGroupName" column="userGroupName"/>
+		<property name="userGroupId" column="userGroupId"/>
+
+		<property name="isDelete" column="isDelete"/>
+
+    </class>
+</hibernate-mapping>

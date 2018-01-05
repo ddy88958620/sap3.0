@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class name="com.hcicloud.sap.model.voice.Voice" table="voice_data" >
+    	<id name="uuid">
+			  <generator class="uuid"/>
+		</id>
+		<many-to-one name="transData" column="trans_data_id" cascade="save-update"/>
+		<many-to-one name="relateData" column="relate_data_id" cascade="save-update"/>
+		<many-to-one name="qualityData" column="quality_data_id" cascade="save-update"/>
+		<many-to-one name="qualityManualData" column="manual_data_id" cascade="save-update"/>
+		<many-to-one name="analysisData" column="analysis_data_id" cascade="save-update"/>
+		<many-to-one name="onlineData" column="online_data_id" cascade="save-update"/>
+		<property name="creatime" column="creatime" type="date"/>
+    </class>
+</hibernate-mapping>

@@ -1,0 +1,173 @@
+package com.hcicloud.sap.controller.annoy;
+
+import com.hcicloud.sap.common.utils.PageFilter;
+import com.hcicloud.sap.common.utils.ReflectUtils;
+import com.hcicloud.sap.pagemodel.annoy.AnnoyModel;
+import com.hcicloud.sap.pagemodel.base.Grid;
+import com.hcicloud.sap.service.annoy.AnnoyService;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.jplus.hyberbin.excel.language.ILanguage;
+import org.jplus.hyberbin.excel.service.SimpleExportService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.net.URLEncoder;
+import java.util.Date;
+import java.util.HashMap;
+/**
+ * 防骚扰模块
+ * @author dingzhaokai
+ *
+ */
+@Controller
+@RequestMapping("/annoy")
+public class AnnoyController {
+
+	@Autowired
+	private AnnoyService annoyService;
+	/**
+	 * 防骚扰列表查询分页数据
+	 * @param annoyModel  查询条件
+	 * @param ph  分页参数
+	 * @return  
+	 */
+	@RequestMapping("/dataGrid")
+	@ResponseBody
+	public Grid getGridData(AnnoyModel annoyModel,PageFilter ph){
+		Grid grid = new Grid();
+		try {
+			grid = annoyService.dataGrid(annoyModel, ph);
+			
+		} catch (Exception e) {
+			//错误信息返回
+			grid.setMessage(e.getMessage());
+			e.printStackTrace();
+		}
+		return grid;
+	}
+	
+	/**
+	 * 防骚扰报表显示分页数据
+	 * @param annoyModel  查询条件
+	 * @return
+	 */
+	@RequestMapping("/countDataGrid")
+	@ResponseBody
+	public Grid getCountDataGrid(AnnoyModel annoyModel){
+		Grid grid = new Grid();
+		try {
+			grid = annoyService.countDataGrid(annoyModel);
+			
+		} catch (Exception e) {
+			//错误信息返回
+			grid.setMessage(e.getMessage());
+			e.printStackTrace();
+		}
+		return grid;
+	}
+	
+	/**
+	 * Execle下载
+	 * @param annoyModel  查询条件
+	 * @param response
+	 * @param request
+	 */
+	
+	
+	@RequestMapping("/download")
+	@ResponseBody
+	public void download(AnnoyModel annoyModel,HttpServletResponse response,HttpServletRequest request){
+	
+		try {
+			//解决get乱码
+			annoyModel.setAnnoyType(new String(annoyModel.getAnnoyType().getBytes("iso8859-1"),"utf-8"));
+			annoyModel.setSeatAttitude(new String(annoyModel.getSeatAttitude().getBytes("iso8859-1"),"utf-8"));
+			//规定一个excle内最多10000条数据
+	        Grid  totalGrid = annoyService.dataGrid(annoyModel, new PageFilter(0,10));
+	        long total =  totalGrid.getiTotalDisplayRecords();
+	       
+	        int sheetNum =(int)total/10000+1;
+	        System.out.println(sheetNum+"导出条数");
+	        System.out.println("开始执行for循环");
+			
+		    Workbook workbook = new HSSFWorkbook();
+		    for (int i = 0; i < sheetNum; i++) {
+		    	System.out.println("第"+i+"循环");
+		    	Grid grid  = annoyService.dataGrid(annoyModel,  new PageFilter(i*10000,10000));
+		        Sheet sheet = workbook.createSheet("防骚扰数据单"+(i+1));
+
+		        //2017年9月12日 14:08:39 补充content字段的校验,长度大于32767，就截取
+				for (int j = 0; j < grid.getAaData().size(); j++) {
+
+					Object callContentObject = ReflectUtils.getValue(grid.getAaData().get(j),"callContent");
+					if (callContentObject != null) {
+						String callContent = callContentObject.toString();
+						int length = callContent.length();
+
+						if (length > 32767) {
+							String callContentJQ = callContent.substring(0, 32767 - 3) + "...";
+							ReflectUtils.invokeSetter(grid.getAaData().get(j),"callContent",callContentJQ);
+						}
+					}
+				}
+				//将String[]内对应名称的列取出并按顺序排序
+		        SimpleExportService service = new SimpleExportService(sheet, grid.getAaData(),
+		                new String[]{"voiceId", "staffId","voicePath","platForm","annoyType","seatAttitude","annoyHistoryType","callPhone","annoyWord","callStartTime","createTime","callContent"},
+		                "防骚扰数据列表");
+		        //将对应列的列头改为相应的文字描述
+		        service.setLanguage(new ILanguage() {
+		            @Override
+		            public String translate(Object key, Object... objects) {
+		                String name = map.get(key.toString());
+		                if(name==null){
+		                    name = key+"";
+		                }
+		                return name;
+		            }
+		        });
+		        service.doExport();
+			}
+		    
+		    
+	        response.setContentType("application/pdf");
+	        String fileName = "防骚扰单数据"+new Date().getTime()+".xls";
+	        //解决文件名乱码,判断是否识IE7-10浏览器
+	        if (request.getHeader("User-Agent").toUpperCase().indexOf("MSIE") > 0) {  
+	        	fileName = URLEncoder.encode(fileName, "UTF-8");  
+	        } else {  
+	        	fileName = new String(fileName.getBytes("UTF-8"), "ISO8859-1");  
+	        }
+	        response.addHeader("Content-Disposition", "attachment; filename=" + fileName);
+	        workbook.write(response.getOutputStream());
+	        
+	        
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	//文件下载对应参数
+    private static HashMap<String,String> map = new  HashMap<String,String>();
+    static {
+        //"ORDER_ID", "VOICE_ID", "PLAT_FORM","USER_PHONE","CALL_LENGTH","QUALITY_NAME","QUALITY_DETAIL","CREATE_TIME"
+        map.put("voiceId","录音流水号");
+        map.put("staffId","坐席工号");
+        map.put("callPhone", "呼叫电话");
+        map.put("voicePath","录音路径");
+        map.put("platForm","平台编号");
+        map.put("annoyType","骚扰种类");
+        map.put("seatAttitude","服务态度");
+        map.put("annoyHistoryType","骚扰详细");
+        map.put("annoyWord","骚扰命中语句");
+        map.put("callStartTime","呼叫起始时间");
+//        map.put("callEndTime","呼叫结束时间");
+        map.put("createTime","创建时间");
+		map.put("callContent","文本内容");
+    }
+}

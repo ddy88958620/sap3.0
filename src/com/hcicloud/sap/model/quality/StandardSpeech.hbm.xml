@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class name="com.hcicloud.sap.model.quality.StandardSpeech" table="QUALITY_STANDARD_SPEECH" >
+    	<id name="uuid">
+			  <generator class="uuid"/>
+		</id>
+		<property name="name" column="NAME"/>
+		<property name="state" column="STATE"/>
+		<property name="updateTime" column="UPDATE_TIME"/>
+		<property  name="content" column="CONTENT"/>
+		<property  name="threshold" column="THRESHOLD"/>
+		<many-to-one name="updateUser" column="UPDATE_USER_ID"/>
+    </class>
+</hibernate-mapping>

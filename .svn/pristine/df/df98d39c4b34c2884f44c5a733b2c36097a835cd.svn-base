@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class name="com.hcicloud.sap.model.admin.User" table="sys_user" >
+    	<id name="uuid">
+			  <generator class="uuid"/>
+		</id>
+		<property name="name" column="name"/>
+		<property name="loginName" column="login_name"/>
+		<property name="password" column="password"/>
+		<property name="state" column="state"/>
+		<property name="isDelete" column="isDelete"/>
+		<property name="updateTime" column="update_time"/>
+		<property name="remark" column="remark"/>
+		<many-to-one name="userGroup" column="user_group_id" lazy="false"/>
+		<many-to-one name="updateUser" column="update_user_id"/>
+  		<set name="roles" table="sys_user_role_relation"  inverse="false">
+   			<key column="user_id"/>
+   			<many-to-many  column="role_id" class="com.hcicloud.sap.model.admin.Role"/>
+  		</set>
+    </class>
+</hibernate-mapping>

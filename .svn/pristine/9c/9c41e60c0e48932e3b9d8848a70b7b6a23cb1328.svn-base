@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC 
+	"-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+	"http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+
+	<class name="com.hcicloud.sap.model.region.AgentInfo" table="region_agentinfo">
+		<id name="id" column="id">
+			  <generator class="uuid"/>
+		</id>
+   		<property name="agentId" column="agentid"/>
+   		<property name="platForm" column="platform"/>
+		<property name="callPhone" column="callphone"/>
+	</class>
+
+</hibernate-mapping>

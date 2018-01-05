@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class name="com.hcicloud.sap.model.quality.AutoRules" table="quality_autorules" >
+    	<id name="uuid">
+			  <generator class="uuid"/>
+		</id>
+		<property name="name" column="name"/>
+		<property name="remark" column="remark"/>
+		<property name="updateTime" column="update_time"/>
+		<property name="preconditions" column="preconditions"/>
+		<property name="state" column="state"/>
+		<property name="searchInfo" column="searchinfo"/>
+		<many-to-one name="updateUser" column="update_user_id"/>
+    </class>
+</hibernate-mapping>

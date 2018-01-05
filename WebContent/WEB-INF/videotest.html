@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Insert title here</title>
+</head>
+<body>
+	<video autoplay width="640" height="480"></video>
+	<img src="" width="640" height="480">
+	<canvas style="display:none;" width='640' height='480'></canvas>
+</body>
+<script src="jquery-1.11.3.min.js"></script>
+<script>
+//window.URL = URL || window.URL || window.webkitURL;
+navigator.getUserMedia  = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+
+
+	 var onFailSoHard = function(e) {
+		    console.log('Reeeejected!', e);
+		 };
+
+	var video = document.querySelector('video');
+	var canvas = document.querySelector('canvas');
+	var ctx = canvas.getContext('2d');
+	var localMediaStream = null;
+
+	function snapshot() {
+	  if (localMediaStream) {
+	    ctx.drawImage(video, 0, 0);
+	    // "image/webp" works in Chrome 18. In other browsers, this will fall back to image/png.
+	    var imageData = canvas.toDataURL('image/png');
+	    document.querySelector('img').src = imageData;
+//	    console.log(imageData);
+	    var img = imageData.substr(22);
+//	    $.post('upload.php',{'data':imageData});
+	    $.ajax({
+	    	type:'post',
+	    	data:'imgdata='+img,
+	    	url:'upload.php'
+	    });
+	  }
+	}
+
+	video.addEventListener('click', snapshot, false);
+
+	// Not showing vendor prefixes or code that works cross-browser.
+	navigator.getUserMedia({video: true}, function(stream) {
+//		console.log(stream);
+	  video.src = window.URL.createObjectURL(stream);
+	  localMediaStream = stream;
+//	  video.onloadedmetadata = function(e){
+//		  console.log(e);
+//	  };
+	}, onFailSoHard);
+</script>
+</html>

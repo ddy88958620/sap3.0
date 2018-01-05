@@ -1,0 +1,6 @@
+.audioImg:hover{
+	border: 1px solid #dbfbff;
+}
+.audioImg{
+	cursor: pointer;
+}

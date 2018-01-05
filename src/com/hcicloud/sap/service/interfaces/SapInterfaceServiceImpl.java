@@ -1,0 +1,80 @@
+package com.hcicloud.sap.service.interfaces;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.hcicloud.sap.common.network.EsUtil;
+import com.hcicloud.sap.common.network.HTTPMethod;
+
+@Service
+public class SapInterfaceServiceImpl implements SapInterfaceService {
+
+	@Override
+	public List<Map<String, Object>> getContentById(String callid) {
+		List<Map<String, Object>> list = new ArrayList<Map<String,Object>>();
+		
+		if(StringUtils.isBlank(callid)){
+			return list;
+		}
+		
+		String searchString = "{\"query\":{\"term\":{\"VOICE_ID\":\""+callid+"\"}}}";
+		String url = EsUtil.getContentQueryUrl();
+		String result = HTTPMethod.doPostQuery(url, searchString, 30000);
+		
+		System.out.println("callid:"+callid+"  "+result);
+		
+		try {
+			
+			JSONObject resultObject = JSON.parseObject(result);
+			JSONObject hitsObject = resultObject.getJSONObject("hits");
+			JSONArray hitsArray = hitsObject.getJSONArray("hits");
+			
+			JSONObject jsonObject = ((JSONObject)hitsArray.get(0)).getJSONObject("_source");
+			if (jsonObject==null) {
+				return list;
+			}
+			
+			String callContent = jsonObject.getString("CALL_CONTENT");
+			String contentSort = jsonObject.getString("USER_PHONE");
+			
+			if(callContent == null || contentSort == null){
+				return list;
+			}
+			
+			String[] callTrans = callContent.split("☆");
+			String[] contentSorts = contentSort.split(",");
+			
+			if(contentSorts.length != callTrans.length){
+				return list;
+			}
+			
+			for(int i=0;i<contentSorts.length;i++){
+				Map<String, Object> map = new HashMap<String, Object>();
+				String[] split = contentSorts[i].split("-");
+				if(split.length != 3){
+					return list;
+				}
+				map.put("role", split[2]);
+				map.put("words", callTrans[i]);
+				map.put("start", Long.parseLong(split[0]));
+				map.put("end", Long.parseLong(split[1]));
+				list.add(map);
+			}
+			
+			return list;
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			return list;
+		} 
+	}
+
+}

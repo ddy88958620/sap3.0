@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class name="com.hcicloud.sap.model.admin.Hotword" table="QUALITY_HOT_WORD">
+    	<id name="uuid">
+			  <generator class="uuid"/>
+		</id>
+		<property name="content" column="CONTENT"/>
+		<property name="updateTime" column="UPDATE_TIME"/>
+		<property name="state" column="STATE"/>
+		<many-to-one name="updateUser" column="UPDATE_USER_ID" lazy="false"/>
+    </class>
+</hibernate-mapping>

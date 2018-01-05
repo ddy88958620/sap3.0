@@ -1,0 +1,260 @@
+.cs{
+	cursor:pointer;
+}
+.cs:hover{
+	 background-color: #B0BED9;
+}
+.leftside{
+	border: 2px solid #C8C8C8;
+	height:100%;
+	padding-left:0px;
+	padding-right:0px;
+	overflow-y:hidden;
+	margin-bottom: 0px;
+	border-radius: 2px;
+}
+.rightside{
+	border: 2px solid #C8C8C8;
+	height:100%;
+    padding:0%;
+	overflow-y:hidden;
+	margin-bottom: 0px;
+	border-radius: 2px;
+}
+.messageContainer{
+	height:100%;
+	margin-top: 20px;
+	margin-bottom: 20px;
+	margin-left: 20px;
+	margin-right: 20px;
+	overflow-y:hidden;
+	border: 2px solid #C8C8C8;
+	border-radius: 10px; 
+	position: relative;
+}
+.message{
+	border-right: 2px solid #C8C8C8;
+	position: relative;
+	width:100%;
+	height:100%;
+	float:left;
+	overflow-y:scroll;
+	overflow-x:hidden;
+	background-color:#DEDEDE;
+}
+.chart{
+	position: relative;
+	width:34%;
+	height:100%;
+	float:right;
+}
+.chartHead{
+	border-bottom: 1px solid #C8C8C8;
+	position: relative;
+	width:100%;
+	height:5%;
+	float:top;
+	text-align: center;
+	font-size: 20px;
+}
+.oldChart{
+	border-bottom: 2px solid #C8C8C8;
+	position: relative;
+	width:100%;
+	height:65%;
+	float:top;
+	overflow-y:auto;
+}
+.sendMessage{
+	position: relative;
+	width:100%;
+	height:30%;
+	float:bottom;
+}
+.fullsize{
+	width: 100%;
+    top: 55px;
+    bottom: 0px;
+    position: absolute;
+}
+.infostate{
+	display: inline-block;
+    position: absolute;
+    right: 20px;
+    text-shadow: none;
+    /* color: #77C646; */
+    font-size: 13px;
+    font-weight: bold;
+    padding-right: 18px;
+    padding-top: 3px;
+}
+.talk_recordbox{
+	min-height:80px;
+	/* color: #afafaf; */
+	padding-top: 5px;
+	padding-bottom: 0px;
+	height: auto;
+	margin-top: 10px;
+}
+
+.talk_recordbox:first-child{border-top:none;}
+.talk_recordbox:last-child{border-bottom:none;}
+.talk_recordbox .talk_recordtextbg{
+	float:left;
+	width:10px;
+	height:30px;
+	display:block;
+	background-image: url(../images/talk_recordtext.png);
+	background-repeat: no-repeat;
+	background-position: left top;}
+.talk_recordbox .talk_recordtext{
+	-moz-border-radius:5px;
+	-webkit-border-radius:5px;
+	border-radius:5px;
+	background-color:#b8d45c;
+	min-width:45%;
+	max-width:45%;
+	height:auto;
+	display:block;
+	padding: 5px;
+	float:left;
+	color:#333333;
+	word-break: break-all;
+	word-wrap: break-word;
+}
+.talk_recordbox h3{
+	font-size:14px;
+	padding:2px 0 5px 0;
+	text-transform:uppercase;
+	font-weight: 100;
+	
+}
+.talk_recordbox .user {
+	float:left;
+	display:inline;
+	height: 45px;
+	width: 45px;
+	margin-top: 10px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	margin-left: 0px;
+	font-size: 14px;
+	line-height: 20px;
+	text-align: center;
+	display:inline;
+	color: #6495ED;
+	font-weight:bold ;
+}
+
+.talk_recordboxme{
+	display:block;
+	min-height:80px;
+	/* color: #afafaf;	 */
+	padding-top: 5px;
+	padding-bottom: 0px;
+	margin-top: 10px;
+}
+.talk_recordboxme .talk_recordtextbg{
+	float:right;
+	width:10px;
+	height:30px;
+	display:block;
+	background-image: url(../images/talk_recordtextme.png);
+	background-repeat: no-repeat;
+	background-position: left top;
+}
+
+.talk_recordboxme .talk_recordtext{
+	-moz-border-radius:5px;
+	-webkit-border-radius:5px;
+	border-radius:5px;
+	background-color:#fcfcfc;
+	min-width:45%;
+	max-width:45%;
+	height:auto;
+	padding: 5px;
+	font-size:12px;
+	float:right;
+	word-break: break-all;
+	word-wrap: break-word;
+	
+}
+.talk_recordboxme h3{
+	font-size:14px;
+	padding:2px 0 5px 0;
+	text-transform:uppercase;
+	font-weight: 100;
+	
+}
+.talk_recordboxme .user{
+    float:right;
+	height: 45px;
+	width: 45px;
+	margin-top: 10px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	margin-left: 0px;
+	font-size: 14px;
+	line-height: 20px;
+	text-align: center;
+	display:inline;
+	color: #6495ED;
+	font-weight:bold ;
+}
+
+
+.talk_recordboxerror{
+	display:block;
+	min-height:80px;
+	/* color: #afafaf;	 */
+	padding-top: 5px;
+	padding-bottom: 0px;
+	margin-top: 10px;
+}
+.talk_recordboxerror .talk_recordtextbg{
+	float:right;
+	width:10px;
+	height:30px;
+	display:block;
+	background-image: url(../images/talk_recordtextme.png);
+	background-repeat: no-repeat;
+	background-position: left top;
+}
+
+.talk_recordboxerror .talk_recordtext{
+	-moz-border-radius:5px;
+	-webkit-border-radius:5px;
+	border-radius:5px;
+	background-color:#fcfcfc;
+	min-width:60%;
+	max-width:90%;
+	height:auto;
+	padding: 5px;
+	font-size:12px;
+	float:right;
+	word-break: break-all;
+	word-wrap: break-word;
+	
+}
+.talk_recordboxerror h3{
+	font-size:14px;
+	padding:2px 0 5px 0;
+	text-transform:uppercase;
+	font-weight: 100;
+	
+}
+
+
+.talk_time{
+	color: #666;
+	text-align: right;
+	width: 240px;
+	display: block;
+}
+
+
+.errorMessage{
+	color:red;
+}
+
+	

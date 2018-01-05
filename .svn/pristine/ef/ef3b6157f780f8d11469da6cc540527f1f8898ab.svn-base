@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class name="com.hcicloud.sap.model.admin.OperationLog" table="sys_operation_log" >
+    	<id name="uuid">
+			  <generator class="uuid"/>
+		</id>
+		<property name="userId" column="USER_ID"/>
+		<property name="operationMenu" column="OPERATION_MENU"/>
+		<property name="operationType" column="OPERATION_TYPE"/>
+		<property name="operationData" column="OPERATION_DATA"/>
+		<property name="operationTime" column="OPERATION_TIME"/>
+		<property name="userName" column="USER_NAME"/>
+    </class>
+</hibernate-mapping>

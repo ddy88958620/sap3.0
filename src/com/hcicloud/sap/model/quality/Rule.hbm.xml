@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class name="com.hcicloud.sap.model.quality.Rule" table="quality_rule" >
+    	<id name="uuid">
+			  <generator class="uuid"/>
+		</id>
+		<property name="name" column="name"/>
+		<property name="maxValue" column="max_value"/>
+		<property name="minValue" column="min_value"/>
+		<property name="equalValue" column="equal_value"/>
+		<property name="resultType" column="result_type"/>
+		<property name="preconditions" column="preconditions"/>
+		<many-to-one name="rules" column="rules_id"/>
+		<many-to-one name="ruleType" column="rule_type_id"/>
+    </class>
+</hibernate-mapping>

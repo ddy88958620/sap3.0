@@ -1,0 +1,987 @@
+package com.hcicloud.sap.service.success.impl;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.hcicloud.sap.common.network.EsUtil;
+import com.hcicloud.sap.common.network.HTTPMethod;
+import com.hcicloud.sap.common.utils.AntZipUtil;
+import com.hcicloud.sap.common.utils.CommonMethod;
+import com.hcicloud.sap.common.utils.DateConversion;
+import com.hcicloud.sap.common.utils.PageFilter;
+import com.hcicloud.sap.dao.BaseDaoI;
+import com.hcicloud.sap.model.quality.AutoRule;
+import com.hcicloud.sap.pagemodel.base.Grid;
+import com.hcicloud.sap.pagemodel.success.ContentGridData;
+import com.hcicloud.sap.pagemodel.success.SuccessModal;
+import com.hcicloud.sap.pagemodel.success.SuccessReportModel;
+import com.hcicloud.sap.service.success.SuccessOrderService;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
+import org.apache.tools.zip.ZipOutputStream;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.io.*;
+import java.util.*;
+
+@Service
+public class SuccessOrderServiceImpl implements SuccessOrderService {
+
+	private Logger logger = Logger.getLogger(SuccessOrderServiceImpl.class);
+
+	private String txtDir = this.getClass().getClassLoader().getResource("/")
+			.getPath()
+			+ "/doc/txt/";
+	private String zipDir = this.getClass().getClassLoader().getResource("/")
+			.getPath()
+			+ "/doc/zip/";
+
+
+	
+	
+
+	@Autowired
+	private BaseDaoI<AutoRule> autoRuleDao;
+
+	@Override
+	public Grid dataGrid(SuccessModal model, PageFilter ph) {
+		String searchString = "{\"query\": {\"filtered\": {\"filter\": [{\"bool\": {\"must\": [";
+		if (StringUtils.isNoneBlank(model.getStartTime())
+				&& StringUtils.isNoneBlank(model.getEndTime())) {
+			searchString += "{\"range\":{\"CREATE_TIME\":{\"gte\":\""
+					+ model.getStartTime() + "\",\"lte\":\""
+					+ model.getEndTime() + "\"}}},";
+		}
+		if (StringUtils.isNoneBlank(model.getVoiceId())) {
+			searchString += "{\"wildcard\":{\"VOICE_ID\": \"*"
+					+ model.getVoiceId() + "*\"}},";
+		}
+		if (StringUtils.isNoneBlank(model.getOrderId())) {
+			searchString += "{\"term\":{\"ORDER_ID\": \"" + model.getOrderId()
+					+ "\"}},";
+		}
+		if (StringUtils.isNoneBlank(model.getPlatForm())) {
+			searchString += "{\"term\":{\"PLAT_FORM\": \""
+					+ model.getPlatForm() + "\"}},";
+		}
+		
+		if (StringUtils.isNoneBlank(model.getQualityName())) {
+			searchString += "{\"wildcard\":{\"QUALITY_NAME\": \"*"
+					+ model.getQualityName() + "*\"}},";
+		}
+		
+		if (StringUtils.isNoneBlank(model.getUserPhone())) {
+			searchString += "{\"term\":{\"USER_PHONE\": \""
+					+ model.getUserPhone() + "\"}},";
+		}
+		if (StringUtils.isNoneBlank(model.getQualityData())
+				&& !"全部".equals(model.getQualityData())) {
+			searchString += "{\"term\":{\"QUALITY_DATA\": \""
+					+ model.getQualityData() + "\"}},";
+		}
+		if (searchString.endsWith(",")) {
+			searchString = searchString.substring(0, searchString.length() - 1);
+		}
+		searchString += "]}}]}},\"sort\": {\"CREATE_TIME\": {\"order\": \"desc\",\"ignore_unmapped\":true}},"
+				+ "\"from\": "
+				+ ph.getiDisplayStart()
+				+ ",\"size\": "
+				+ ph.getiDisplayLength() + "}";
+		List<SuccessModal> list = new ArrayList<SuccessModal>();
+		long total = 0l;
+		try {
+			String result = HTTPMethod.doPostQuery(EsUtil.successUrl()
+					+ "/_search", searchString, 30000);
+			logger.info("result:" + result);
+			JSONObject resultObject = JSON.parseObject(result);
+			JSONObject hitsObject = resultObject.getJSONObject("hits");
+			total = (Integer) hitsObject.get("total");
+			JSONArray hitsArray = hitsObject.getJSONArray("hits");
+			for (Object v : hitsArray) {
+				JSONObject jsonObject = ((JSONObject) v)
+						.getJSONObject("_source");
+				SuccessModal sm = new SuccessModal();
+				sm.setOrderId(jsonObject.getString("ORDER_ID"));
+				sm.setVoiceId(jsonObject.getString("VOICE_ID"));
+				sm.setPlatForm(jsonObject.getString("PLAT_FORM"));
+				sm.setUserPhone(jsonObject.getString("USER_PHONE"));
+
+				String callLength = jsonObject.getString("CALL_LENGTH");
+				if (StringUtils.isNotBlank(callLength)) {
+					int second = Integer.parseInt(callLength);
+					callLength = transSecToHour(second);
+				}
+
+				sm.setCallLength(callLength);
+				sm.setQualityName(jsonObject.getString("QUALITY_NAME"));
+				sm.setQualityDetail(jsonObject.getString("QUALITY_DETAIL"));
+				sm.setCreateTime(jsonObject.getString("CREATE_TIME"));
+				
+				String receiveTime ="";//接收时间
+				String inspectionTime="";//质检用时
+				String openApi_createTime =jsonObject.getString("openApi_createTime");
+				//时间戳转换成日期格式
+				if (openApi_createTime!=null&&!"".equals(openApi_createTime)) {
+					receiveTime=DateConversion.getDateByTime(Long.parseLong(openApi_createTime), "yyyy-MM-dd HH:mm:ss");	
+					Long createTimeToMail=DateConversion.getTimeInMillis(jsonObject.getString("CREATE_TIME"), "yyyy-MM-dd HH:mm:ss");
+					inspectionTime= DateConversion.formatTime((createTimeToMail-Long.parseLong(openApi_createTime)));
+								
+				}
+				sm.setReceiveTime(receiveTime);
+				sm.setInspectionTime(inspectionTime);
+				
+
+				list.add(sm);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		Grid grid = new Grid();
+		grid.setAaData(list);
+		grid.setiTotalDisplayRecords(total);
+		grid.setiTotalRecords(list.size());
+		return grid;
+	}
+
+	@Override
+	public Grid reportGrid(SuccessReportModel model) {
+		// {"query":{"bool":{"must":[{"terms":{"QUALITY_DATA":["A","C"]}},{"range":{"CREATE_TIME":{"gte":"2016-12-01 00:00:00","lte":"2017-01-04 00:00:00"}}}]}},"size":0,"aggs":{"quality":{"terms":{"field":"QUALITY_NAME"},"aggs":{"platform":{"terms":{"field":"PLAT_FORM"}}}}}}
+		String searchString = "{\"query\":{\"bool\":{\"must\":[";
+		// if(StringUtils.isNotBlank(model.getAutoRules()) &&
+		// !"全部".equals(model.getAutoRules())){
+		// searchString +=
+		// "{\"terms\":{\"QUALITY_DATA\":[\""+model.getAutoRules()+"\",\"\"]}},";
+		// }
+		if (StringUtils.isNoneBlank(model.getStartTime())
+				&& StringUtils.isNoneBlank(model.getEndTime())) {
+			searchString += "{\"range\":{\"CREATE_TIME\":{\"gte\":\""
+					+ model.getStartTime() + "\",\"lte\":\""
+					+ model.getEndTime() + "\"}}}";
+		}
+		if (searchString.endsWith(",")) {
+			searchString = searchString.substring(0, searchString.length() - 1);
+		}
+		searchString += "]}},\"size\":0,\"aggs\":{\"quality\":{\"terms\":{\"field\":\"QUALITY_NAME\",\"size\":1000},\"aggs\":{\"platform\":{\"terms\":{\"field\":\"PLAT_FORM\"}}}}}}";
+
+		String result = HTTPMethod.doPostQuery(
+				EsUtil.successUrl() + "/_search", searchString, 30000);
+		System.out.println("报表显示查询地址" + EsUtil.successUrl() + "/_search");
+		System.out.println("查询语句" + searchString);
+		logger.info("result:" + result);
+		JSONObject object = JSON.parseObject(result);
+		Long total = object.getJSONObject("hits").getLong("total");
+		JSONArray buckets = object.getJSONObject("aggregations")
+				.getJSONObject("quality").getJSONArray("buckets");
+		Map<String, Map<String, Object>> map = new HashMap<String, Map<String, Object>>();
+
+		for (int i = 0; i < buckets.size(); i++) {
+			JSONObject item = buckets.getJSONObject(i);
+
+			String key = item.getString("key");
+			if (key.contains("|")) {
+				String[] split = key.split("\\|");
+				for (String splitKey : split) {
+					splitKeyCount(splitKey, map, item);
+				}
+			} else {
+				splitKeyCount(key, map, item);
+			}
+		}
+
+		// 对的出的结果按total排序
+		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+		Set<String> keySet = map.keySet();
+		for (String string : keySet) {
+			list.add(map.get(string));
+		}
+		Map<String, Object> temp = null;
+		Map<String, Object> before = null;
+		Map<String, Object> after = null;
+		for (int i = list.size() - 1; i > 0; --i) {
+
+			for (int j = 0; j < i; ++j) {
+				before = list.get(j);
+				after = list.get(j + 1);
+				if ((Long) after.get("total") > (Long) before.get("total")) {
+					temp = before;
+					list.set(j, after);
+					list.set(j + 1, temp);
+				}
+			}
+
+		}
+
+		// 为每个质检点添加违规率
+		for (Map<String, Object> map2 : list) {
+			Long countLong = (Long) map2.get("total");
+			String violation = ((countLong * 1.0d / total) * 100 + "")
+					.substring(0, 4) + "%";
+
+			map2.put("violation", violation);
+		}
+
+		// 去除非选中类别的数据
+		if ("B".equals(model.getAutoRules())) {
+			checkBQualityRulesList(list);
+		}
+		if ("A".equals(model.getAutoRules())) {
+			checkAQualityRulesList(list);
+		}
+		if ("C".equals(model.getAutoRules())) {
+			checkCQualityRulesList(list);
+		}
+		if ("全部".equals(model.getAutoRules())) {
+			checkAllQualityRulesList(list);
+		}
+		/*// 添加违规总数
+		Map<String, Object> againstSumMap = new HashMap<String, Object>();
+	
+		long numCCOD = 0;
+		long numXQDHW = 0;
+		long numXQDZX = 0;
+		long numXQDZHW = 0;
+		long numXQDSHW = 0;
+
+		for (Map<String, Object> againstMap : list) {
+			if (StringUtils.isNotBlank(againstMap.get("key").toString())) {
+				if (againstMap.get("XQD-CCOD") != null) {
+					numCCOD += (Long) againstMap.get("XQD-CCOD");
+				}
+				if (againstMap.get("XQD-HW") != null) {
+					numXQDHW += (Long) againstMap.get("XQD-HW");
+				}
+				if (againstMap.get("XQD-ZX") != null) {
+					numXQDZX += (Long) againstMap.get("XQD-ZX");
+				}
+				if (againstMap.get("XQD-ZHW") != null) {
+					numXQDZHW += ((Long) againstMap.get("XQD-ZHW"));
+				}
+				if (againstMap.get("XQD-SHW") != null) {
+					numXQDSHW += (Long)againstMap.get("XQD-SHW");
+				}
+
+			}
+			;
+		}*/
+
+		/*long numAgainstTotal = numCCOD + numXQDHW + numXQDZX + numXQDZHW
+				+ numXQDSHW;
+		againstSumMap.put("key", "违规总数");
+		againstSumMap.put("total", numAgainstTotal);
+		againstSumMap.put("XQD-CCOD", numCCOD);
+		againstSumMap.put("XQD-HW", numXQDHW);
+		againstSumMap.put("XQD-ZX", numXQDZX);
+		againstSumMap.put("XQD-ZHW", numXQDZHW);
+		againstSumMap.put("XQD-SHW", numXQDSHW);
+		list.add(againstSumMap);*/
+
+		// 添加工单总数
+		builSuccessCountList(list, model);
+
+		Grid grid = new Grid();
+		grid.setAaData(list);
+		grid.setiTotalDisplayRecords(list.size());
+		grid.setiTotalRecords(list.size());
+		return grid;
+	}
+
+	private void builSuccessCountList(List<Map<String, Object>> list,
+			SuccessReportModel model) {
+		// 构建工单总数map{"total":10056,"violation":"99.8 %","XQD - HW":10056,key:"aaa"}
+
+		Map<String, Object> succeessSumMap = new HashMap<String, Object>();
+		Map<String, Object> countMap = new HashMap<String, Object>();// 存储统计的各个平台数量
+		// 查询工单总数total
+		PageFilter ph = new PageFilter(0, 1);
+
+		SuccessModal successModal = new SuccessModal();
+		successModal.setStartTime(model.getStartTime());
+		successModal.setEndTime(model.getEndTime());
+		successModal.setQualityData(model.getAutoRules());
+
+		Grid successGrid = this.dataGrid(successModal, ph);
+		countMap.put("total", successGrid.getiTotalDisplayRecords());
+		// successModal.setqu
+		String[] platForms = { "XQD-CCOD", "XQD-HW", "XQD-ZX", "XQD-ZHW",
+				"XQD-SHW" };
+		for (String string : platForms) {
+			successModal.setPlatForm(string);
+			countMap.put(string, this.dataGrid(successModal, ph)
+					.getiTotalDisplayRecords());
+		}
+
+		succeessSumMap.put("key", "工单总数");
+		succeessSumMap.put("total", countMap.get("total"));
+		succeessSumMap.put("XQD-CCOD", countMap.get("XQD-CCOD"));
+		succeessSumMap.put("XQD-HW", countMap.get("XQD-HW"));
+		succeessSumMap.put("XQD-ZX", countMap.get("XQD-ZX"));
+		succeessSumMap.put("XQD-ZHW", countMap.get("XQD-ZHW"));
+		succeessSumMap.put("XQD-SHW", countMap.get("XQD-SHW"));
+		succeessSumMap.put("violation", " ");
+		list.add(succeessSumMap);
+
+	}
+
+	private String transSecToHour(int second) {
+		int h = 0;
+		int d = 0;
+		int s = 0;
+		int temp = second % 3600;
+		if (second > 3600) {
+			h = second / 3600;
+			if (temp != 0) {
+				if (temp > 60) {
+					d = temp / 60;
+					if (temp % 60 != 0) {
+						s = temp % 60;
+					}
+				} else {
+					s = temp;
+				}
+			}
+		} else {
+			d = second / 60;
+			if (second % 60 != 0) {
+				s = second % 60;
+			}
+		}
+
+		return h + "时" + d + "分" + s + "秒";
+	}
+
+	private void checkBQualityRulesList(List<Map<String, Object>> list) {
+		Set<String> bQualityNameSet = new HashSet<String>();
+
+		String hql = "from AutoRule a where a.autoRules.name = 'B' ";
+		List<AutoRule> find = autoRuleDao.find(hql);
+		for (AutoRule autoRule : find) {
+			bQualityNameSet.add(autoRule.getName());
+		}
+		
+		// 判断B类质检点是否在List中存在
+		Iterator<Map<String, Object>> iterator = list.iterator();
+		while (iterator.hasNext()) {
+			Map<String, Object> next = iterator.next();
+			String key = (String) next.get("key");
+			if (!bQualityNameSet.contains("pattern_" + key) && !"".equals(key)) {
+				iterator.remove();
+			}
+		}
+
+		// 最后将所属规则集B的所有质检点加入不包含的置为0
+		// 把list中的所有key拿出来
+		Iterator<Map<String, Object>> reultIterator = list.iterator();
+		Set<String> getListKey = new HashSet<String>();
+		while (reultIterator.hasNext()) {
+			Map<String, Object> next = reultIterator.next();
+			getListKey.add("pattern_" + next.get("key"));
+		}
+
+		Iterator<String> bIterator = bQualityNameSet.iterator();
+		while (bIterator.hasNext()) {
+			String key = bIterator.next();
+			if (!getListKey.contains(key)) {
+				Map<String, Object> autoRuleMap = new HashMap<String, Object>();
+				autoRuleMap.put("violation", "0.00%");
+				autoRuleMap.put("total", 0);
+				autoRuleMap.put("key", key.substring(8));
+				list.add(autoRuleMap);
+			}
+
+		}
+
+	}
+
+	private void checkAQualityRulesList(List<Map<String, Object>> list) {
+		Set<String> aQualityNameSet = new HashSet<String>();
+			// 为空 初始化
+		String hql = "from AutoRule a where a.autoRules.name = 'A' ";
+		List<AutoRule> find = autoRuleDao.find(hql);
+		for (AutoRule autoRule : find) {
+			aQualityNameSet.add(autoRule.getName());
+		}
+		// 判断A类质检点是否在List中存在
+		Iterator<Map<String, Object>> iterator = list.iterator();
+		while (iterator.hasNext()) {
+			Map<String, Object> next = iterator.next();
+			String key = (String) next.get("key");
+			if (!aQualityNameSet.contains("pattern_" + key) && !"".equals(key)) {
+				iterator.remove();
+			}
+		}
+
+		// 最后将所属规则集A的所有质检点加入不包含的置为0
+		// 把list中的所有key拿出来
+		Iterator<Map<String, Object>> reultIterator = list.iterator();
+		Set<String> getListKey = new HashSet<String>();
+		while (reultIterator.hasNext()) {
+			Map<String, Object> next = reultIterator.next();
+			getListKey.add("pattern_" + next.get("key"));
+		}
+
+		Iterator<String> aIterator = aQualityNameSet.iterator();
+		while (aIterator.hasNext()) {
+			String key = aIterator.next();
+			if (!getListKey.contains(key)) {
+				Map<String, Object> autoRuleMap = new HashMap<String, Object>();
+				autoRuleMap.put("violation", "0.00%");
+				autoRuleMap.put("total", 0);
+				autoRuleMap.put("key", key.substring(8));
+				list.add(autoRuleMap);
+			}
+
+		}
+
+	}
+
+	private void checkCQualityRulesList(List<Map<String, Object>> list) {
+		Iterator<Map<String, Object>> iterator = list.iterator();
+		while (iterator.hasNext()) {
+			Map<String, Object> next = iterator.next();
+			String key = (String) next.get("key");
+			if (!"".equals(key)) {
+				iterator.remove();
+			}
+		}
+	}
+
+	private void checkAllQualityRulesList(List<Map<String, Object>> list) {
+		 Set<String> allQualityNameSet = new HashSet<String>();
+	
+		String hql = "from AutoRule a";
+		List<AutoRule> find = autoRuleDao.find(hql);
+		for (AutoRule autoRule : find) {
+			allQualityNameSet.add(autoRule.getName());
+		}
+
+
+		// 判断list中是否包含所有质检点如果不包含增减并将数量置为0以及违规率置为0.0%
+		Iterator<Map<String, Object>> reultIterator = list.iterator();
+		Set<String> getListKey = new HashSet<String>();
+		while (reultIterator.hasNext()) {
+			Map<String, Object> next = reultIterator.next();
+			getListKey.add("pattern_" + next.get("key"));
+		}
+
+		Iterator<String> aIterator = allQualityNameSet.iterator();
+		while (aIterator.hasNext()) {
+			String key = aIterator.next();
+			if (!getListKey.contains(key)) {
+				Map<String, Object> autoRuleMap = new HashMap<String, Object>();
+				autoRuleMap.put("violation", "0.00%");
+				autoRuleMap.put("total", 0);
+				//autoRuleMap.put("key",key);
+				autoRuleMap.put("key", key.substring(8));
+				list.add(autoRuleMap);
+			}
+
+		}
+		
+
+	}
+
+	private void splitKeyCount(String key,
+			Map<String, Map<String, Object>> map, JSONObject item) {
+		Long total = item.getLong("doc_count");
+		JSONArray platList = item.getJSONObject("platform").getJSONArray(
+				"buckets");
+		if (map.containsKey(key)) {
+			Map<String, Object> keyMap = map.get(key);
+			keyMap.put("key", key);
+			keyMap.put("total", (Long) keyMap.get("total") + total);
+			for (int j = 0; j < platList.size(); j++) {
+				JSONObject platform = platList.getJSONObject(j);
+				String platformName = platform.getString("key");
+				if (keyMap.containsKey(platformName)) {
+					keyMap.put(platformName, (Long) keyMap.get(platformName)
+							+ platform.getLong("doc_count"));
+				} else {
+					keyMap.put(platformName, platform.getLong("doc_count"));
+				}
+			}
+			map.put(key, keyMap);
+		} else {
+			Map<String, Object> sr = new HashMap<String, Object>();
+			sr.put("key", key);
+			sr.put("total", total);
+			for (int j = 0; j < platList.size(); j++) {
+				JSONObject platform = platList.getJSONObject(j);
+				sr.put(platform.getString("key"), platform.getLong("doc_count"));
+			}
+			map.put(key, sr);
+		}
+	}
+
+	@Override
+	public List<ContentGridData> getContentListByVoiceId(String orderId) {
+		List<ContentGridData> list = new ArrayList<ContentGridData>();
+		if (StringUtils.isBlank(orderId)) {
+			return list;
+		}
+		String searchString = "{\"query\":{\"term\":{\"ORDER_ID\":\""
+				+ orderId
+				+ "\"}},\"sort\":{\"CALL_START_TIME\":{\"order\":\"asc\"}},\"size\":1000}";
+		String url = EsUtil.getContentQueryUrl();
+
+		String result = HTTPMethod.doPostQuery(url, searchString, 30000);
+		logger.info("根据orderId查询转写结果");
+		logger.info("查询语句：" + searchString);
+		logger.info("查询结果：" + result);
+		JSONObject resultObject = JSON.parseObject(result);
+		JSONObject hitsObject = resultObject.getJSONObject("hits");
+		JSONArray hitsArray = hitsObject.getJSONArray("hits");
+		for (Object object : hitsArray) {
+			JSONObject jsonObject = ((JSONObject) object)
+					.getJSONObject("_source");
+			ContentGridData data = new ContentGridData();
+			data.setVoiceId(jsonObject.getString("VOICE_ID"));
+			data.setCallContent(jsonObject.getString("CALL_CONTENT"));
+			list.add(data);
+		}
+		return list;
+	}
+
+	public File getFiles(InputStream inputStream, String uploadFileType)
+			throws Exception {
+		List<File> list = new ArrayList<File>();
+		if (StringUtils.isBlank(uploadFileType)) {
+			return null;
+		}
+		List<String> idList = new ArrayList<String>();
+
+		InputStreamReader reader = new InputStreamReader(inputStream);
+		BufferedReader br = new BufferedReader(reader);
+		String input = "";
+		try {
+			while ((input = br.readLine()) != null) {
+				idList.add(input);
+			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				br.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		for (String id : idList) {
+			if ("voiceId".equals(uploadFileType)) {
+				list.add(createFileByVoiceId(id));
+			}
+			if ("orderId".equals(uploadFileType)) {
+				list.add(createFileByOrderId(id,"hzfl"));
+			}
+		}
+
+		File zip = new File(zipDir);
+		if (!zip.exists()) {
+			zip.mkdirs();
+		}
+
+		File fileZip = new File(zipDir + "成功单数据.zip");
+		// 文件输出流
+		FileOutputStream outStream = new FileOutputStream(fileZip);
+		// 压缩流
+		ZipOutputStream toClient = new ZipOutputStream(outStream);
+		toClient.setEncoding("gbk");
+		AntZipUtil.zipFile(list, toClient);
+		toClient.close();
+		outStream.close();
+		return fileZip;
+	}
+
+	@Override
+	public File getFileTest(SuccessModal model) throws Exception {
+		Grid dataGrid = this.dataGrid(model, new PageFilter(0, 10000));
+		List<File> list = new ArrayList<File>();
+		List<SuccessModal> aaData = dataGrid.getAaData();
+		for (SuccessModal jsonObject : aaData) {
+			list.add(createFileByOrderId(jsonObject.getOrderId(),"onlyTxt"));
+		}
+
+		File zip = new File(zipDir);
+		if (!zip.exists()) {
+			zip.mkdirs();
+		}
+
+		File fileZip = new File(zipDir + "成功单数据.zip");
+		// 文件输出流
+		FileOutputStream outStream = new FileOutputStream(fileZip);
+		// 压缩流
+		ZipOutputStream toClient = new ZipOutputStream(outStream);
+		toClient.setEncoding("gbk");
+		AntZipUtil.zipFile(list, toClient);
+		toClient.close();
+		outStream.close();
+		File dirFile = new File(txtDir);
+		dirFile.delete();
+		return fileZip;
+	}
+	
+	/**
+	 * 工单文本下载话着分离形式
+	 * @param model
+	 * @return
+	 */
+	
+	@Override
+	public File getSuccessFile(SuccessModal model) {
+		Grid dataGrid = this.dataGrid(model, new PageFilter(0, 10000));
+
+		List<File> list = new ArrayList<File>();
+		List<SuccessModal> aaData = dataGrid.getAaData();
+		for (SuccessModal jsonObject : aaData) {
+			
+			List<File> fileByOrderId = getFileByOrderId(jsonObject.getOrderId());
+			for (int i = 0; i < fileByOrderId.size(); i++) {
+				list.add(fileByOrderId.get(i));
+				
+			}
+		}
+		
+		File zip = new File(zipDir);
+		if (!zip.exists()) {
+			zip.mkdirs();
+		}
+
+		File fileZip = new File(zipDir + "成功单转译数据.zip");
+		// 文件输出流
+		FileOutputStream outStream;
+		try {
+			outStream = new FileOutputStream(fileZip);
+		
+		// 压缩流
+		ZipOutputStream toClient = new ZipOutputStream(outStream);
+		toClient.setEncoding("gbk");
+		AntZipUtil.zipFile(list, toClient);
+		toClient.close();
+		outStream.close();
+		File dirFile = new File(txtDir);
+		dirFile.delete();
+		} catch (Exception e) {
+			System.out.println("successOrderServiceImpl输出压缩流失败");
+			logger.info("successOrderServiceImpl输出压缩流失败");
+			e.printStackTrace();
+		}
+		return fileZip;
+	}
+	
+	private List<File> getFileByOrderId(String orderId) {
+		String searchString = "{\"query\":{\"term\":{\"ORDER_ID\":\""+ orderId + "\"}},\"sort\":{\"CALL_START_TIME\":{\"order\":\"asc\"}},\"size\":1000}";
+		String url = EsUtil.getContentQueryUrl();
+
+		String result = HTTPMethod.doPostQuery(url, searchString, 30000);
+		
+		List<File> fileList = new ArrayList<File>();
+		
+
+		try {
+
+			JSONObject resultObject = JSON.parseObject(result);
+			JSONObject hitsObject = resultObject.getJSONObject("hits");
+			JSONArray hitsArray = hitsObject.getJSONArray("hits");
+
+			File dirFile = new File(txtDir);
+			if (!dirFile.exists()) {
+				dirFile.mkdirs();
+			}
+			
+			if (hitsArray == null || hitsArray.size() == 0) {
+				System.out.println(orderId+"无对应文本");
+				File file = new File(txtDir + orderId + ".txt");
+				if (!file.exists()) {
+					file.createNewFile();
+				}
+				fileList.add(file);
+				return fileList;
+			} else {
+				for (Object object : hitsArray) {
+					
+					String callContent=null;
+					String contentSort=null;
+					String voiceId =null;
+					
+					try {
+						
+						try {
+							JSONObject jsonObject = ((JSONObject) object).getJSONObject("_source");
+							 callContent = jsonObject.getString("CALL_CONTENT");
+							 contentSort = jsonObject.getString("USER_PHONE");
+							 voiceId  = jsonObject.getString("VOICE_ID");
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+						
+						File file = new File(txtDir + orderId +"_"+voiceId + ".txt");
+						if (!file.exists()) {
+							file.createNewFile();
+						}
+						fileList.add(file);
+						
+						if(callContent == null || contentSort == null){
+							continue;
+						}
+						
+						String[] callTrans = callContent.split("☆");
+						String[] contentSorts = contentSort.split(",");
+						
+						if(contentSorts.length != callTrans.length){
+							continue;
+						}
+						FileOutputStream fos = null;
+						fos = new FileOutputStream(file);
+						
+						for(int i=0;i<contentSorts.length;i++){
+							StringBuffer contentBuffer = new StringBuffer();
+							String[] split = contentSorts[i].split("-");
+							if(split.length != 3){
+								break;
+							}
+							
+							String talkTime=CommonMethod.secToTime((int)(Long.parseLong(split[0])/1000));
+							contentBuffer.append("["+talkTime+"] ");
+							if ("A".equals(split[2])) {
+								contentBuffer.append("[客服]");
+							}else {
+								contentBuffer.append("[用户]");
+							}
+							contentBuffer.append(callTrans[i]+"\n");
+							fos.write(contentBuffer.toString().getBytes());
+						} 
+						
+							fos.flush();
+							try {
+								fos.close();
+							} catch (IOException e) {
+								logger.info("SuccessOrderServiceImpl文件流关闭失败");
+								System.out.println("SuccessOrderServiceImpl文件流关闭失败");
+							}
+						
+					} catch (Exception e) {
+							e.printStackTrace();
+							System.out.println("SuccessOrderServiceImpl创建文件失败");
+							logger.info("SuccessOrderServiceImpl创建文件失败");
+					}
+					
+				
+				}
+			}
+		 } catch (Exception e) {
+			e.printStackTrace();
+		}
+       return fileList;
+		
+	}
+
+	private File createFileByOrderId(String orderId,String exportType) {
+		String searchString = "{\"query\":{\"term\":{\"ORDER_ID\":\""+ orderId + "\"}},\"sort\":{\"CALL_START_TIME\":{\"order\":\"asc\"}},\"size\":1000}";
+		String url = EsUtil.getContentQueryUrl();
+
+		String result = HTTPMethod.doPostQuery(url, searchString, 30000);
+		StringBuffer contentBuffer = new StringBuffer();
+		try {
+
+			JSONObject resultObject = JSON.parseObject(result);
+			JSONObject hitsObject = resultObject.getJSONObject("hits");
+			JSONArray hitsArray = hitsObject.getJSONArray("hits");
+			
+			
+			if (hitsArray == null || hitsArray.size() == 0) {
+				contentBuffer.append("提示信息：此工单号无对应文本数据！！！！");
+			} else {
+				//导出话者分离
+				if ("hzfl".equals(exportType)) {
+					for (Object object : hitsArray) {
+						JSONObject jsonObject = ((JSONObject) object).getJSONObject("_source");
+						//content += jsonObject.getString("CALL_CONTENT");
+						//成功单所有流水号文本拼在一块
+						String callContent = jsonObject.getString("CALL_CONTENT");
+						String contentSort = jsonObject.getString("USER_PHONE");
+						
+						//话者分离格式文本
+						String[] callTrans = callContent.split("☆");
+						String[] contentSorts = contentSort.split(",");
+						
+						if(contentSorts.length != callTrans.length){
+							contentBuffer.append("文本转译格式不正确\n");
+							break;
+						}
+						
+						for(int i=0;i<contentSorts.length;i++){
+							
+							String[] split = contentSorts[i].split("-");
+							if(split.length != 3){
+								contentBuffer.append("文本转译格式不正确\n");
+								break;
+							}
+							String talkTime=CommonMethod.secToTime((int)(Long.parseLong(split[0])/1000));
+							contentBuffer.append("["+talkTime+"] ");
+							if ("A".equals(split[2])) {
+								contentBuffer.append("[客服]");
+							}else {
+								contentBuffer.append("[用户]");
+							}
+							contentBuffer.append(callTrans[i]+"\n");
+						}
+						
+						
+					}
+				}else {
+					
+					for (Object object : hitsArray) {
+						JSONObject jsonObject = ((JSONObject) object).getJSONObject("_source");
+						contentBuffer.append(jsonObject.getString("CALL_CONTENT"));
+					}
+				}
+			}
+			
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			// throw new RuntimeException("无对应的数据！");
+		}
+
+		File dirFile = new File(txtDir);
+		if (!dirFile.exists()) {
+			dirFile.mkdirs();
+		}
+
+		File file = new File(txtDir + orderId + ".txt");
+
+		FileOutputStream fos = null;
+		try {
+			if (!file.exists()) {// 文件不存在则创建
+				file.createNewFile();
+			}
+			fos = new FileOutputStream(file);
+
+			
+			if ("hzfl".equals(exportType)) {
+				fos.write(contentBuffer.toString().getBytes());// 写入文件内容
+				
+			}else {
+				String contentString ="";
+				if (contentBuffer != null && contentBuffer.length() > 0) {
+					// 将文本中的☆转为换行
+					/*contentBuffer = contentBuffer.substring(0, contentBuffer.length() - 1);
+					content = "a " + content.replace("☆", "\na ");*/
+					contentString = contentBuffer.substring(0, contentBuffer.length() - 1);
+					contentString ="a " + contentString.replace("☆", "\na ");
+				}
+				fos.write(contentString.getBytes());
+			}
+			
+			fos.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.err.println("文件创建失败");
+		} finally {
+			if (fos != null) {
+				try {
+					fos.close();
+				} catch (IOException e) {
+					System.err.println("文件流关闭失败");
+				}
+			}
+		}
+		return file;
+	}
+
+	private File createFileByVoiceId(String voiceId) {
+		String searchString = "{\"query\":{\"term\":{\"VOICE_ID\":\"" + voiceId
+				+ "\"}}}";
+		String url = EsUtil.getContentQueryUrl();
+		String result = HTTPMethod.doPostQuery(url, searchString, 30000);
+		JSONObject jsonObject = null;
+		
+		File dirFile = new File(txtDir);
+		if (!dirFile.exists()) {
+			dirFile.mkdirs();
+		}
+
+		File file = new File(txtDir + voiceId + ".txt");
+		FileOutputStream fos = null;
+		try {
+			if (!file.exists()) {// 文件不存在则创建
+				file.createNewFile();
+			}
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+	
+				fos = new FileOutputStream(file);
+				JSONObject resultObject = JSON.parseObject(result);
+				JSONObject hitsObject = resultObject.getJSONObject("hits");
+				JSONArray hitsArray = hitsObject.getJSONArray("hits");
+				StringBuffer contentBuffer = new StringBuffer();
+				
+				if (hitsArray.size()>0) {
+					jsonObject = ((JSONObject) hitsArray.get(0)).getJSONObject("_source");
+					String callContent = jsonObject.getString("CALL_CONTENT");
+					String contentSort = jsonObject.getString("USER_PHONE");
+					// 将文本中的☆转为换行
+					/*if (str != null && str.length() > 0) {
+						
+						str = str.substring(0, str.length() - 1);
+						str = "a " + str.replace("☆", "\na ");
+					}*/
+					
+		            //话者分离格式文本
+					String[] callTrans = callContent.split("☆");
+					String[] contentSorts = contentSort.split(",");
+					
+					if(contentSorts.length != callTrans.length){
+						return null;
+					}
+					
+					for(int i=0;i<contentSorts.length;i++){
+						
+						String[] split = contentSorts[i].split("-");
+						if(split.length != 3){
+							contentBuffer.append("文本转译格式不正确");
+							break;
+						}
+						
+						String talkTime=CommonMethod.secToTime((int)(Long.parseLong(split[0])/1000));
+						contentBuffer.append("["+talkTime+"] ");
+						if ("A".equals(split[2])) {
+							contentBuffer.append("[客服]");
+						}else {
+							contentBuffer.append("[用户]");
+						}
+						contentBuffer.append(callTrans[i]+"\n");
+					}
+				
+				
+				} else {
+					contentBuffer.append("无对应文本数据");
+				}
+				fos.write(contentBuffer.toString().getBytes());// 写入文件内容
+				fos.flush();
+			}
+		
+		
+		
+		catch (IOException e) {
+					e.printStackTrace();
+					System.err.println("文件创建失败");
+		} finally {
+					if (fos != null) {
+						try {
+							fos.close();
+						} catch (IOException e) {
+							System.err.println("文件流关闭失败");
+						}
+					}
+		}
+		return file;
+	}
+
+}
